@@ -22,7 +22,8 @@ export class FormDataFillingService {
     'marital_status', 'post_office_box', 'creationDate',
     'diabetesOther',
     'everHospitalized', 'lastTimeSmoked',
-    'healthDeclaration'
+    'healthDeclaration',
+    'invoices'
   ];
 
   excludedKeysForm = [

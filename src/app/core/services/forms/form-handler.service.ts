@@ -424,32 +424,20 @@ export class FormHandlerService {
                   break;
 
                 case 'claims-refund':
-                  if (ID) {
-                    appComponent.showOverlay = true;
-                    this.refundService.sendRefund(ID)
-                      .subscribe(res => {
-                        appComponent.showOverlay = false;
-                        this.correctSend(res, dialog, dataClosing, route);
-                      }, (err) => {
-                        appComponent.showOverlay = false;
-                        this.badSend(err, dialog);
-                      });
-                  } else {
-                    appComponent.showOverlay = true;
-                    this.refundService.postClaim(json)
-                      .subscribe((res: any) => {
-                        if (res.data.id) {
-                          this.refundService.sendRefund(res.data.id)
-                            .subscribe(response => {
-                              appComponent.showOverlay = false;
-                              this.correctSend(response, dialog, dataClosing, route);
-                            });
-                        }
-                      }, (err) => {
-                        appComponent.showOverlay = false;
-                        this.badSend(err, dialog);
-                      });
-                  }
+                  appComponent.showOverlay = true;
+                  this.refundService.postClaim(json)
+                    .subscribe((res: any) => {
+                      if (res.data.id) {
+                        this.refundService.sendRefund(res.data.id)
+                          .subscribe(response => {
+                            appComponent.showOverlay = false;
+                            this.correctSend(response, dialog, dataClosing, route);
+                          });
+                      }
+                    }, (err) => {
+                      appComponent.showOverlay = false;
+                      this.badSend(err, dialog);
+                    });
                   break;
 
                 case 'new-authorization':

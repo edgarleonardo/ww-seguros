@@ -1,5 +1,5 @@
 import { Component, OnInit, ViewChild, ChangeDetectorRef, SimpleChanges } from '@angular/core';
-import { FormGroup, FormArray, FormBuilder, Validators, FormControl } from '@angular/forms';
+import { FormGroup, FormArray, FormBuilder, Validators, FormControl, ValidatorFn, AbstractControl, ValidationErrors } from '@angular/forms';
 import { FieldConfig, Validator } from '../../../../../../shared/components/form-components/models/field-config';
 import { FormHandlerService } from '../../../../../../core/services/forms/form-handler.service';
 import { RefundService } from '../../../../claims/new-claim/claim-types/refund/services/refund.service';
@@ -592,7 +592,7 @@ export class RefundComponent implements OnInit {
 		// }
 
 		console.log('El json de todo el formulario: ', JSON.stringify(this.refundForm.value));
-
+		
 	}
 	// role;
 	// idd;
@@ -1010,9 +1010,9 @@ export class RefundComponent implements OnInit {
 			this.refundForm.addControl(
 				'infoTransferencia',
 				this.fb.group({
-					noCuenta: ['', Validators.required],
+					noCuenta: ['', [Validators.required, this.accountNumberValidator()]],
 					tipoCuenta: ['', Validators.required],
-					bancoEmisor: ['', Validators.required],
+					bancoEmisor: ['', [Validators.required, this.bankValidator()]],
 					// tipoMoneda: ['', Validators.required]
 				})
 			);
@@ -1047,12 +1047,45 @@ export class RefundComponent implements OnInit {
 	createInfo(): FormGroup {
 		return this.fb.group({
 			// cedula: ['', Validators.required],
-			noCuenta: ['', Validators.required],
+			noCuenta: ['', [Validators.required, this.accountNumberValidator()]],
 			tipoCuenta: ['', Validators.required],
-			bancoEmisor: ['', Validators.required],
+			bancoEmisor: ['', [Validators.required, this.bankValidator()]],
 			// tipoMoneda: ['', Validators.required],
 			// correo: ['', Validators.required]
 		});
+	}
+
+	bankValidator(): ValidatorFn {
+		return (control: AbstractControl): { [key: string]: any } | null => {
+		  // Get the input value
+		  const inputValue: string = control.value;
+
+		  // Check your validation condition here
+		  if (!this.banks.includes(inputValue)) {
+			return { 'customValidation': { value: ''} };
+		  }
+	  
+		  // Return null if validation passes
+		  return null;
+		};
+	}
+
+	accountNumberValidator(): ValidatorFn {
+		return (control: AbstractControl): { [key: string]: any } | null => {
+		  if(control.value == null && control.touched) {
+			return { 'customValidation': { value: control.value } };
+		  }
+		  // Get the input value
+		  const inputValue: string = control.value.toString();
+
+		  // Check your validation condition here
+		  if (inputValue.length < 6) { 
+			return { 'customValidation': { value: control.value } };
+		  }
+	  
+		  // Return null if validation passes
+		  return null;
+		};
 	}
 
 	createDiagnostic(): FormGroup {
@@ -1073,6 +1106,21 @@ export class RefundComponent implements OnInit {
 				otros: this.fb.array([this.createFormArray('otros')]),
 			})
 		});
+	}
+
+	atLeastOneInvoiceAttached(control: AbstractControl): ValidationErrors | null {
+		const formGroup = control as FormGroup;
+
+		// Check if any FormArray has at least one valid FormGroup
+		const isAnyArrayValid = Object.keys(formGroup.controls).some(key => {
+			if (key != 'id' && key == 'invoices') {
+				const formArray = formGroup.get(key) as FormArray;
+				return formArray.value[0][key].length > 0;
+			}
+			return false;
+		});
+
+		return isAnyArrayValid ? null : { noArrayValid: true };
 	}
 
 	addDiagnostic() {
@@ -1101,7 +1149,7 @@ export class RefundComponent implements OnInit {
 		switch (type) {
 			case 'invoices':
 				return this.fb.group({
-					invoices: [''],
+					invoices: ['',Validators.required],
 				});
 
 			case 'indications':
@@ -1623,6 +1671,9 @@ export class RefundComponent implements OnInit {
 						map(value => typeof value === 'string' ? value : value),
 						map(value => value ? this._filterBanks(value) : this.banks.slice())
 					);
+				this.refundForm.get('infoTransferencia').get('bancoEmisor').setValidators([Validators.required, this.bankValidator()]);
+				this.refundForm.get('infoTransferencia').get('noCuenta').setValidators([Validators.required, this.accountNumberValidator()]);
+				
 				setTimeout(() => {
 					this.refundForm.get('infoTransferencia').get('bancoEmisor').setValue(valueBanco + ' ');
 					console.log('yaaaaaaaaaaaaaa bancoEmisor ');
@@ -1637,25 +1688,21 @@ export class RefundComponent implements OnInit {
 			for (let x = 0; x < this.diagnosticList.length; x++) {
 
 				for (let y = 0; y < this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('invoices')['controls'].length; y++) {
-
-					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('invoices').get(y.toString()).get('invoices').clearValidators();
+					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('invoices').get(y.toString()).get('invoices').setValidators(Validators.required);
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('invoices').get(y.toString()).get('invoices').updateValueAndValidity();
 				}
 
 				for (let y = 0; y < this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('indications')['controls'].length; y++) {
-
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('indications').get(y.toString()).get('indications').clearValidators();
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('indications').get(y.toString()).get('indications').updateValueAndValidity();
 				}
 
 				for (let y = 0; y < this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('medicReports')['controls'].length; y++) {
-
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('medicReports').get(y.toString()).get('medicReports').clearValidators();
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('medicReports').get(y.toString()).get('medicReports').updateValueAndValidity();
 				}
 
 				for (let y = 0; y < this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('paymentVouchers')['controls'].length; y++) {
-
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('paymentVouchers').get(y.toString()).get('paymentVouchers').clearValidators();
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('paymentVouchers').get(y.toString()).get('paymentVouchers').updateValueAndValidity();
 				}
@@ -1666,6 +1713,7 @@ export class RefundComponent implements OnInit {
 					this.refundForm.get('diagnosticos').get(x.toString()).get('files').get('otros').get(y.toString()).get('otros').updateValueAndValidity();
 				}
 			}
+			
 			// setTimeout(() => {
 			this.appComponent.showOverlay = false;
 			// },
@@ -1680,9 +1728,29 @@ export class RefundComponent implements OnInit {
 		console.log('thing:', thing);
 	}
 
-	sendForm(form: FormGroup, formType: string, sendType: string, id?: number) {
-		console.log(id);
-		this.formHandler.sendForm(form, formType, sendType, this.appComponent, id);
+	sanitizeAccountNumber(form: FormGroup) {
+		if(form.get('infoTransferencia')) {
+			let accountNumber: AbstractControl = form.get('infoTransferencia').get('noCuenta') || null;
 
+			if(accountNumber && accountNumber.value == null) {
+				accountNumber.setValue(0);
+			}
+		}
+	}
+
+	setStatus(form: FormGroup){
+
+		if(!form.get('status')){
+			form.addControl('status', this.fb.control(0, Validators.required));
+		}
+
+		const status = form.status === 'VALID' ? 1 : 0;
+		form.get('status').setValue(status);
+	}
+
+	sendForm(form: FormGroup, formType: string, sendType: string, id?: number) {
+		this.sanitizeAccountNumber(form);
+		this.setStatus(form);
+		this.formHandler.sendForm(form, formType, sendType, this.appComponent, id);
 	}
 }
